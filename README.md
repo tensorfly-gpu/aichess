@@ -29,7 +29,7 @@ UIplay.py   GUI界面人机对弈
 然后，在终端运行python train.py用于模型训练，这个终端只用开一个。
 
 ## 四、相关资源链接
-B站视频链接：可以参考
+B站视频链接：https://www.bilibili.com/video/BV183411g7GX
 
 知乎文章：https://zhuanlan.zhihu.com/p/528824058?
 
