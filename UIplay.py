@@ -3,9 +3,17 @@ import sys
 import copy
 import random
 from game import move_action2move_id, Game, Board
-from net import PolicyValueNet
 from mcts import MCTSPlayer
 import time
+from config import CONFIG
+
+
+if CONFIG['use_frame'] == 'paddle':
+    from paddle_net import PolicyValueNet
+elif CONFIG['use_frame'] == 'pytorch':
+    from pytorch_net import PolicyValueNet
+else:
+    print('暂不支持您选择的框架')
 
 
 class Human:
@@ -26,14 +34,12 @@ class Human:
         self.player = p
 
 
-policy_value_net = PolicyValueNet(model_file='current_policy100.model')
-# policy_value_net = PolicyValueNet()
-
-# human = Human()
-# game = Game(board=Board())
-# # print(game.board.state_list)
-# game.start_play(mcts_player, human, start_player=1, is_shown=1)
-
+if CONFIG['use_frame'] == 'paddle':
+    policy_value_net = PolicyValueNet(model_file='current_policy.model')
+elif CONFIG['use_frame'] == 'pytorch':
+    policy_value_net = PolicyValueNet(model_file='current_policy.pkl')
+else:
+    print('暂不支持您选择的框架')
 
 # 初始化pygame
 pygame.init()
