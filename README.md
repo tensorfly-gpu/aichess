@@ -31,6 +31,8 @@ UIplay.py   GUI界面人机对弈
 ## 四、相关资源链接
 B站视频链接：可以参考
 
+知乎文章：https://zhuanlan.zhihu.com/p/528824058?
+
 aistudio上一键可运行项目：https://aistudio.baidu.com/aistudio/projectdetail/4215743 （可以使用免费的V100来进行训练）
 
 ## 五、参考与致谢
