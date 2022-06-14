@@ -13,4 +13,5 @@
 
 
 B站视频链接：可以参考
-aistudio上一键可运行项目：https://aistudio.baidu.com/aistudio/projectdetail/4215743（可以使用免费的V100来进行训练）
+
+aistudio上一键可运行项目：https://aistudio.baidu.com/aistudio/projectdetail/4215743 （可以使用免费的V100来进行训练）
