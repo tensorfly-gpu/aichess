@@ -105,7 +105,7 @@ class TrainPipeline:
         """开始训练"""
         try:
             for i in range(self.game_batch_num):
-                time.sleep(30)  # 每10分钟更新一次模型
+                time.sleep(600)  # 每10分钟更新一次模型
                 while True:
                     try:
                         with open(CONFIG['train_data_buffer_path'], 'rb') as data_dict:
