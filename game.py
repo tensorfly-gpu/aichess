@@ -775,7 +775,7 @@ class Game(object):
         player2.set_player_ind(2)
         players = {p1: player1, p2: player2}
         if is_shown:
-            self.graphic(self.board, player1.player, player2.player)
+            self.graphic(self.board, self.board.id2color[player1.player], self.board.id2color[player2.player])
 
         while True:
             current_player = self.board.get_current_player_id()  # 红子对应的玩家id
@@ -783,7 +783,7 @@ class Game(object):
             move = player_in_turn.get_action(self.board)  # 当前玩家代理拿到动作
             self.board.do_move(move)  # 棋盘做出改变
             if is_shown:
-                self.graphic(self.board, player1.player, player2.player)
+                self.graphic(self.board, self.board.id2color[player1.player], self.board.id2color[player2.player])
             end, winner = self.board.game_end()
             if end:
                 if winner != -1:
