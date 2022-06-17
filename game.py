@@ -885,7 +885,3 @@ if __name__ == '__main__':
     game = Game(board=Board())
     for i in range(20):
         game.start_play(human1, human2, start_player=2, is_shown=0)
-
-
-
-
