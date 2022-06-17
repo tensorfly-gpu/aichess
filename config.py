@@ -10,6 +10,7 @@ CONFIG = {
     'batch_size': 5000,  # batch_size大小，根据自己的显存大小决定
     'kl_targ': 0.02,  # kl散度控制
     'epochs' : 5,  # 每次更新的train_step数量
-    'game_batch_num': 3000,  # 训练更新的次数
+    'game_batch_num': 30000,  # 训练更新的次数
     'use_frame': 'paddle',  # paddle or pytorch根据自己的环境进行切换
 }
+
