@@ -164,3 +164,4 @@ if __name__ == '__main__':
     x_act, x_val = net(test_data)
     print(x_act.shape)  # 8, 2086
     print(x_val.shape)  # 8, 1
+    
