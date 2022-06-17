@@ -1,3 +1,6 @@
+"""与AI进行UI界面的人机对战"""
+
+
 import pygame
 import sys
 import copy
