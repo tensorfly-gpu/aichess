@@ -32,20 +32,25 @@ class ResBlock(nn.Layer):
 # 搭建骨干网络，输入：N, 9, 10, 9 --> N, C, H, W
 class Net(nn.Layer):
 
-    def __init__(self, num_channels=256, num_res_blocks=7):
+    def __init__(self, num_channels=256, num_res_blocks=13):
         super().__init__()
         # 初始化特征
         self.conv_block = nn.Conv2D(in_channels=9, out_channels=num_channels, kernel_size=3, stride=1, padding=1)
         self.conv_block_bn = nn.BatchNorm2D(num_features=256)
         self.conv_block_act = nn.ReLU()
+        # 全局特征
+        self.global_conv = nn.Conv2D(in_channels=9, out_channels=512, kernel_size=(10, 9))
+        self.global_bn = nn.BatchNorm1D(512)
         # 残差块抽取特征
         self.res_blocks = nn.LayerList([ResBlock(num_filters=num_channels) for _ in range(num_res_blocks)])
         # 策略头
+        self.global_policy_fc = nn.Linear(512, 2086)
         self.policy_conv = nn.Conv2D(in_channels=num_channels, out_channels=16, kernel_size=1, stride=1)
         self.policy_bn = nn.BatchNorm2D(16)
         self.policy_act = nn.ReLU()
         self.policy_fc = nn.Linear(16 * 9 * 10, 2086)
         # 价值头
+        self.global_value_fc = nn.Linear(512, 256)
         self.value_conv = nn.Conv2D(in_channels=num_channels, out_channels=8, kernel_size=1, stride=1)
         self.value_bn = nn.BatchNorm2D(8)
         self.value_act1 = nn.ReLU()
@@ -56,6 +61,9 @@ class Net(nn.Layer):
     # 定义前向传播
     def forward(self, x):
         # 公共头
+        global_x = self.global_conv(x)
+        global_x = paddle.reshape(global_x, [-1, 512])
+        global_x = self.global_bn(global_x)
         x = self.conv_block(x)
         x = self.conv_block_bn(x)
         x = self.conv_block_act(x)
@@ -67,15 +75,17 @@ class Net(nn.Layer):
         policy = self.policy_act(policy)
         policy = paddle.reshape(policy, [-1, 16 * 10 * 9])
         policy = self.policy_fc(policy)
-        policy = F.log_softmax(policy)
+        global_policy = self.policy_act(self.global_policy_fc(global_x))
+        policy = F.log_softmax(policy + global_policy)
         # 价值头
         value = self.value_conv(x)
         value = self.value_bn(value)
         value = self.value_act1(value)
         value = paddle.reshape(value, [-1, 8 * 10 * 9])
+        global_value = self.value_act1(self.global_value_fc(global_x))
         value = self.value_fc1(value)
         value = self.value_act1(value)
-        value = self.value_fc2(value)
+        value = self.value_fc2(value + global_value)
         value = F.tanh(value)
 
         return policy, value
