@@ -6,7 +6,7 @@ import numpy as np
 import pickle
 import time
 from config import CONFIG
-
+from my_zodb import MyZODB
 
 if CONFIG['use_frame'] == 'paddle':
     from paddle_net import PolicyValueNet
@@ -29,7 +29,6 @@ class TrainPipeline:
         self.kl_targ = CONFIG['kl_targ']  # kl散度控制
         self.check_freq = 100  # 保存模型的频率
         self.game_batch_num = CONFIG['game_batch_num']  # 训练更新的次数
-
         if init_model:
             try:
                 self.policy_value_net = PolicyValueNet(model_file=init_model)
@@ -45,7 +44,7 @@ class TrainPipeline:
     def policy_updata(self):
         """更新策略价值网络"""
         mini_batch = random.sample(self.data_buffer, self.batch_size)
-
+        # print(mini_batch[0][1],mini_batch[1][1])
         state_batch = [data[0] for data in mini_batch]
         state_batch = np.array(state_batch).astype('float32')
 
@@ -79,7 +78,7 @@ class TrainPipeline:
             self.lr_multiplier /= 1.5
         elif kl < self.kl_targ / 2 and self.lr_multiplier < 10:
             self.lr_multiplier *= 1.5
-
+        # print(old_v.flatten(),new_v.flatten())
         explained_var_old = (1 -
                              np.var(np.array(winner_batch) - old_v.flatten()) /
                              np.var(np.array(winner_batch)))
@@ -91,8 +90,8 @@ class TrainPipeline:
                "lr_multiplier:{:.3f},"
                "loss:{},"
                "entropy:{},"
-               "explained_var_old:{:.3f},"
-               "explained_var_new:{:.3f}"
+               "explained_var_old:{:.9f},"
+               "explained_var_new:{:.9f}"
                ).format(kl,
                         self.lr_multiplier,
                         loss,
@@ -106,27 +105,40 @@ class TrainPipeline:
         try:
             for i in range(self.game_batch_num):
                 time.sleep(30)  # 每10分钟更新一次模型
+                # while True:
+                #     try:
+                #         with open(CONFIG['train_data_buffer_path'], 'rb') as data_dict:
+                #             data_file = pickle.load(data_dict)
+                #             self.data_buffer = data_file['data_buffer']
+                #             self.iters = data_file['iters']
+                #             del data_file
+                #         print('已载入数据')
+                #         break
+                #     except:
+                #         time.sleep(30)
                 while True:
                     try:
-                        with open(CONFIG['train_data_buffer_path'], 'rb') as data_dict:
-                            data_file = pickle.load(data_dict)
-                            self.data_buffer = data_file['data_buffer']
-                            self.iters = data_file['iters']
-                            del data_file
-                        print('已载入数据')
+                        mydb = MyZODB()
+                        mydb.gc()
+                        self.iters,self.data_buffer = mydb.load()
                         break
                     except:
-                        time.sleep(30)
+                        time.sleep(5)
+                    finally:
+                        try:
+                            mydb.close()
+                        except:
+                            pass
                 print('step i {}: '.format(self.iters))
                 if len(self.data_buffer) > self.batch_size:
                     loss, entropy = self.policy_updata()
-                # 保存模型
-                if CONFIG['use_frame'] == 'paddle':
-                    self.policy_value_net.save_model(CONFIG['paddle_model_path'])
-                elif CONFIG['use_frame'] == 'pytorch':
-                    self.policy_value_net.save_model(CONFIG['pytorch_model_path'])
-                else:
-                    print('不支持所选框架')
+                    # 保存模型
+                    if CONFIG['use_frame'] == 'paddle':
+                        self.policy_value_net.save_model(CONFIG['paddle_model_path'])
+                    elif CONFIG['use_frame'] == 'pytorch':
+                        self.policy_value_net.save_model(CONFIG['pytorch_model_path'])
+                    else:
+                        print('不支持所选框架')
                 if (i + 1) % self.check_freq == 0:
                     print('current selfplay batch: {}'.format(i + 1))
                     self.policy_value_net.save_model('models/current_policy_batch{}.model'.format(i + 1))

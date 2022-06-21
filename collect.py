@@ -9,6 +9,7 @@ import time
 from game import Board, Game, move_action2move_id, move_id2move_action, flip_map
 from mcts import MCTSPlayer
 from config import CONFIG
+from my_zodb import MyZODB
 
 
 if CONFIG['use_frame'] == 'paddle':
@@ -33,6 +34,7 @@ class CollectPipeline:
         self.buffer_size = CONFIG['buffer_size']    # 经验池大小
         self.data_buffer = deque(maxlen=self.buffer_size)
         self.iters = 0
+
 
     # 从主体加载模型
     def load_model(self):
@@ -82,27 +84,40 @@ class CollectPipeline:
             self.episode_len = len(play_data)
             # 增加数据
             play_data = self.get_equi_data(play_data)
-
-            if os.path.exists(CONFIG['train_data_buffer_path']):
-                while True:
+            while True:
+                try:
+                    db = MyZODB()
+                    self.iters = db.dump(db.getMaxIters()+1,play_data)
+                    print("存储完成")
+                    break
+                except:
+                    print("存储失败")
+                    time.sleep(1)
+                finally:
                     try:
-                        with open(CONFIG['train_data_buffer_path'], 'rb') as data_dict:
-                            data_file = pickle.load(data_dict)
-                            self.data_buffer = data_file['data_buffer']
-                            self.iters = data_file['iters']
-                            del data_file
-                            self.iters += 1
-                            self.data_buffer.extend(play_data)
-                        print('成功载入数据')
-                        break
+                        db.close()
                     except:
-                        time.sleep(30)
-            else:
-                self.data_buffer.extend(play_data)
-                self.iters += 1
-            data_dict = {'data_buffer': self.data_buffer, 'iters': self.iters}
-            with open(CONFIG['train_data_buffer_path'], 'wb') as data_file:
-                pickle.dump(data_dict, data_file)
+                        pass
+            # if os.path.exists(CONFIG['train_data_buffer_path']):
+            #     while True:
+            #         try:
+            #             with open(CONFIG['train_data_buffer_path'], 'rb') as data_dict:
+            #                 data_file = pickle.load(data_dict)
+            #                 self.data_buffer = data_file['data_buffer']
+            #                 self.iters = data_file['iters']
+            #                 del data_file
+            #                 self.iters += 1
+            #                 self.data_buffer.extend(play_data)
+            #             print('成功载入数据')
+            #             break
+            #         except:
+            #             time.sleep(30)
+            # else:
+            #     self.data_buffer.extend(play_data)
+            #     self.iters += 1
+            # data_dict = {'data_buffer': self.data_buffer, 'iters': self.iters}
+            # with open(CONFIG['train_data_buffer_path'], 'wb') as data_file:
+            #     pickle.dump(data_dict, data_file)
         return self.iters
 
     def run(self):
