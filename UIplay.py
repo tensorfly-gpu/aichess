@@ -40,7 +40,7 @@ class Human:
 if CONFIG['use_frame'] == 'paddle':
     policy_value_net = PolicyValueNet(model_file='current_policy.model')
 elif CONFIG['use_frame'] == 'pytorch':
-    policy_value_net = PolicyValueNet(model_file='models/current_policy_batch1900.model')
+    policy_value_net = PolicyValueNet(model_file='models/current_policy_batch500.model')
 else:
     print('暂不支持您选择的框架')
 
@@ -204,9 +204,13 @@ player1 = MCTSPlayer(policy_value_net.policy_value_fn,
                      c_puct=5,
                      n_playout=1000,
                      is_selfplay=0)
+player2 = MCTSPlayer(policy_value_net.policy_value_fn,
+                     c_puct=5,
+                     n_playout=1000,
+                     is_selfplay=0)
 
 
-player2 = Human()
+# player2 = Human()
 
 board.init_board(start_player)
 p1, p2 = 1, 2
@@ -263,6 +267,7 @@ while True:
         player_in_turn = players[current_player]  # 决定当前玩家的代理
 
     if player_in_turn.agent == 'AI':
+        pygame.display.update()
         start_time = time.time()
         move = player_in_turn.get_action(board)  # 当前玩家代理拿到动作
         print('耗时：', time.time() - start_time)
