@@ -653,12 +653,16 @@ class Board(object):
     def init_board(self, start_player=1):   # 传入先手玩家的id
         # 增加一个颜色到id的映射字典，id到颜色的映射字典
         # 永远是红方先移动
+        self.start_player = start_player
+
         if start_player == 1:
             self.id2color = {1: '红', 2: '黑'}
             self.color2id = {'红': 1, '黑': 2}
+            self.backhand_player = 2
         elif start_player == 2:
             self.id2color = {2: '红', 1: '黑'}
             self.color2id = {'红': 2, '黑': 1}
+            self.backhand_player = 1
         # 当前手玩家，也就是先手玩家
         self.current_player_color = self.id2color[start_player]     # 红
         self.current_player_id = self.color2id['红']
@@ -732,8 +736,9 @@ class Board(object):
         """一共有三种状态，红方胜，黑方胜，平局"""
         if self.winner is not None:
             return True, self.winner
-        elif self.kill_action >= CONFIG['kill_action']:  # 平局
-            return False, -1
+        elif self.kill_action >= CONFIG['kill_action']:  # 平局先手判负
+            # return False, -1
+            return True, self.backhand_player
         return False, -1
 
     # 检查当前棋局是否结束

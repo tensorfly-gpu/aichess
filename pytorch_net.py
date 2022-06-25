@@ -6,6 +6,7 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 from config import CONFIG
+from torch.cuda.amp import autocast
 
 
 # 搭建残差块
@@ -35,6 +36,9 @@ class Net(nn.Module):
 
     def __init__(self, num_channels=256, num_res_blocks=7):
         super().__init__()
+        # 全局特征
+        # self.global_conv = nn.Conv2D(in_channels=9, out_channels=512, kernel_size=(10, 9))
+        # self.global_bn = nn.BatchNorm2D(512)
         # 初始化特征
         self.conv_block = nn.Conv2d(in_channels=9, out_channels=num_channels, kernel_size=(3, 3), stride=(1, 1), padding=1)
         self.conv_block_bn = nn.BatchNorm2d(256)
@@ -108,12 +112,13 @@ class PolicyValueNet:
         self.policy_value_net.eval()
         # 获取合法动作列表
         legal_positions = board.availables
-        current_state = np.ascontiguousarray(board.current_state().reshape(-1, 9, 10, 9)).astype('float32')
-        current_state = torch.tensor(current_state).to(self.device)
+        current_state = np.ascontiguousarray(board.current_state().reshape(-1, 9, 10, 9)).astype('float16')
+        current_state = torch.as_tensor(current_state).to(self.device)
         # 使用神经网络进行预测
-        log_act_probs, value = self.policy_value_net(current_state)
+        with autocast(): #半精度fp16
+            log_act_probs, value = self.policy_value_net(current_state)
         log_act_probs, value = log_act_probs.cpu() , value.cpu()
-        act_probs = np.exp(log_act_probs.numpy().flatten()) if CONFIG['use_frame'] == 'paddle' else np.exp(log_act_probs.detach().numpy().flatten())
+        act_probs = np.exp(log_act_probs.numpy().flatten()) if CONFIG['use_frame'] == 'paddle' else np.exp(log_act_probs.detach().numpy().astype('float16').flatten())
         # 只取出合法动作
         act_probs = zip(legal_positions, act_probs[legal_positions])
         # 返回动作概率，以及状态价值
