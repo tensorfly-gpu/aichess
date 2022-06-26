@@ -2,7 +2,7 @@
 
 
 import random
-from collections import defaultdict
+from collections import defaultdict, deque
 
 import numpy as np
 import pickle
@@ -13,7 +13,7 @@ from config import CONFIG
 from game import Game, Board
 from mcts import MCTSPlayer
 from mcts_pure import MCTS_Pure
-# from my_zodb import MyZODB
+import my_redis,redis
 
 if CONFIG['use_frame'] == 'paddle':
     from paddle_net import PolicyValueNet
@@ -42,6 +42,9 @@ class TrainPipeline:
         self.game_batch_num = CONFIG['game_batch_num']  # 训练更新的次数
         self.best_win_ratio = 0.0
         self.pure_mcts_playout_num = 500
+        self.redis_cli = my_redis.get_redis_cli()
+        self.buffer_size = maxlen=CONFIG['buffer_size']
+        self.data_buffer = deque(maxlen=self.buffer_size)
         if init_model:
             try:
                 self.policy_value_net = PolicyValueNet(model_file=init_model)
@@ -144,31 +147,28 @@ class TrainPipeline:
         try:
             for i in range(self.game_batch_num):
                 time.sleep(CONFIG['train_update_interval'])  # 每10分钟更新一次模型
-                while True:
-                    try:
-                        with open(CONFIG['train_data_buffer_path'], 'rb') as data_dict:
-                            data_file = pickle.load(data_dict)
-                            self.data_buffer = data_file['data_buffer']
-                            self.iters = data_file['iters']
-                            del data_file
-                        print('已载入数据')
-                        break
-                    except:
-                        time.sleep(30)
                 # while True:
                 #     try:
-                #         mydb = MyZODB()
-                #         mydb.gc()
-                #         self.iters,self.data_buffer = mydb.load()
-                #
+                #         with open(CONFIG['train_data_buffer_path'], 'rb') as data_dict:
+                #             data_file = pickle.load(data_dict)
+                #             self.data_buffer = data_file['data_buffer']
+                #             self.iters = data_file['iters']
+                #             del data_file
+                #         print('已载入数据')
+                #         break
                 #     except:
-                #         time.sleep(5)
-                #     finally:
-                #         try:
-                #             mydb.close()
-                #             break
-                #         except:
-                #             break
+                #         time.sleep(30)
+                while True:
+                    try:
+                        l = len(self.data_buffer)
+                        data = my_redis.get_list_range(self.redis_cli,'train_data_buffer', l if l == 0 else l - 1,-1)
+                        self.data_buffer.extend(data)
+                        self.iters = self.redis_cli.get('iters')
+                        if self.redis_cli.llen('train_data_buffer') > self.buffer_size:
+                            self.redis_cli.lpop('train_data_buffer',self.buffer_size/10)
+                        break
+                    except:
+                        time.sleep(5)
                 print('step i {}: '.format(self.iters))
                 if len(self.data_buffer) > self.batch_size:
                     loss, entropy = self.policy_updata()

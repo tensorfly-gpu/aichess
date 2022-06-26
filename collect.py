@@ -5,13 +5,11 @@ import copy
 import os
 import pickle
 import time
-
+import my_redis, redis
 import zip_array
 from game import Board, Game, move_action2move_id, move_id2move_action, flip_map
 from mcts import MCTSPlayer
 from config import CONFIG
-# from my_zodb import MyZODB
-
 
 if CONFIG['use_frame'] == 'paddle':
     from paddle_net import PolicyValueNet
@@ -29,13 +27,13 @@ class CollectPipeline:
         self.board = Board()
         self.game = Game(self.board)
         # 对弈参数
-        self.temp = 1   # 温度
+        self.temp = 1  # 温度
         self.n_playout = CONFIG['play_out']  # 每次移动的模拟次数
-        self.c_puct = CONFIG['c_puct']       # u的权重
-        self.buffer_size = CONFIG['buffer_size']    # 经验池大小
+        self.c_puct = CONFIG['c_puct']  # u的权重
+        self.buffer_size = CONFIG['buffer_size']  # 经验池大小
         self.data_buffer = deque(maxlen=self.buffer_size)
         self.iters = 0
-
+        self.redis_cli = my_redis.get_redis_cli()
 
     # 从主体加载模型
     def load_model(self):
@@ -68,7 +66,7 @@ class CollectPipeline:
             state = state.transpose([1, 2, 0])
             for i in range(10):
                 for j in range(9):
-                    state_flip[i][j] = state[i][8-j]
+                    state_flip[i][j] = state[i][8 - j]
             state_flip = state_flip.transpose([2, 0, 1])
             mcts_prob_flip = copy.deepcopy(mcts_prob)
             for i in range(len(mcts_prob_flip)):
@@ -79,48 +77,45 @@ class CollectPipeline:
     def collect_selfplay_data(self, n_games=1):
         # 收集自我对弈的数据
         for i in range(n_games):
-            self.load_model()   # 从本体处加载最新模型
+            self.load_model()  # 从本体处加载最新模型
             winner, play_data = self.game.start_self_play(self.mcts_player, temp=self.temp, is_shown=False)
             play_data = list(play_data)[:]
             self.episode_len = len(play_data)
             # 增加数据
             play_data = self.get_equi_data(play_data)
-            # while True:
-            #     try:
-            #         db = MyZODB()
-            #         self.iters = db.dump(db.getMaxIters()+1,play_data)
-            #         print("存储完成")
-            #
-            #     except:
-            #         print("存储失败")
-            #         time.sleep(5)
-            #     finally:
+            while True:
+                try:
+
+                    for d in play_data:
+                        self.redis_cli.rpush('train_data_buffer', pickle.dumps(d))
+                    self.redis_cli.incr('iters')
+                    self.iters = self.redis_cli.get('iters')
+                    print("存储完成")
+                    break
+                except:
+                    print("存储失败")
+                    time.sleep(1)
+            # if os.path.exists(CONFIG['train_data_buffer_path']):
+            #     while True:
             #         try:
-            #             db.close()
+            #             with open(CONFIG['train_data_buffer_path'], 'rb') as data_dict:
+            #                 data_file = pickle.load(data_dict)
+            #                 self.data_buffer = deque(maxlen=self.buffer_size)
+            #                 self.data_buffer.extend(data_file['data_buffer'])
+            #                 self.iters = data_file['iters']
+            #                 del data_file
+            #                 self.iters += 1
+            #                 self.data_buffer.extend(play_data)
+            #             print('成功载入数据')
             #             break
             #         except:
-            #             break
-            if os.path.exists(CONFIG['train_data_buffer_path']):
-                while True:
-                    try:
-                        with open(CONFIG['train_data_buffer_path'], 'rb') as data_dict:
-                            data_file = pickle.load(data_dict)
-                            self.data_buffer = deque(maxlen=self.buffer_size)
-                            self.data_buffer.extend(data_file['data_buffer'])
-                            self.iters = data_file['iters']
-                            del data_file
-                            self.iters += 1
-                            self.data_buffer.extend(play_data)
-                        print('成功载入数据')
-                        break
-                    except:
-                        time.sleep(30)
-            else:
-                self.data_buffer.extend(play_data)
-                self.iters += 1
-            data_dict = {'data_buffer': self.data_buffer, 'iters': self.iters}
-            with open(CONFIG['train_data_buffer_path'], 'wb') as data_file:
-                pickle.dump(data_dict, data_file)
+            #             time.sleep(30)
+            # else:
+            #     self.data_buffer.extend(play_data)
+            #     self.iters += 1
+            # data_dict = {'data_buffer': self.data_buffer, 'iters': self.iters}
+            # with open(CONFIG['train_data_buffer_path'], 'wb') as data_file:
+            #     pickle.dump(data_dict, data_file)
         return self.iters
 
     def run(self):

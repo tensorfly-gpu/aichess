@@ -40,7 +40,7 @@ class Human:
 if CONFIG['use_frame'] == 'paddle':
     policy_value_net = PolicyValueNet(model_file='current_policy.model')
 elif CONFIG['use_frame'] == 'pytorch':
-    policy_value_net = PolicyValueNet(model_file='models/current_policy_batch500.model')
+    policy_value_net = PolicyValueNet(model_file='current_policy.pkl')
 else:
     print('暂不支持您选择的框架')
 
@@ -206,7 +206,7 @@ player1 = MCTSPlayer(policy_value_net.policy_value_fn,
                      is_selfplay=0)
 player2 = MCTSPlayer(policy_value_net.policy_value_fn,
                      c_puct=5,
-                     n_playout=1000,
+                     n_playout=2000,
                      is_selfplay=0)
 
 
