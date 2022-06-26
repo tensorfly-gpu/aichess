@@ -35,7 +35,7 @@ mcts_player = MCTSPlayer(policy_value_net.policy_value_fn,
 human = Human1()
 
 
-
 game = Game(board=Board())
 game.start_play(mcts_player, human, start_player=1, is_shown=1)
+
 

@@ -1,6 +1,5 @@
 """棋盘游戏控制"""
 
-
 import numpy as np
 import copy
 import time
@@ -654,12 +653,16 @@ class Board(object):
     def init_board(self, start_player=1):   # 传入先手玩家的id
         # 增加一个颜色到id的映射字典，id到颜色的映射字典
         # 永远是红方先移动
+        self.start_player = start_player
+
         if start_player == 1:
             self.id2color = {1: '红', 2: '黑'}
             self.color2id = {'红': 1, '黑': 2}
+            self.backhand_player = 2
         elif start_player == 2:
             self.id2color = {2: '红', 1: '黑'}
             self.color2id = {'红': 2, '黑': 1}
+            self.backhand_player = 1
         # 当前手玩家，也就是先手玩家
         self.current_player_color = self.id2color[start_player]     # 红
         self.current_player_id = self.color2id['红']
@@ -686,8 +689,9 @@ class Board(object):
         # 0-6个平面表示棋子位置，1代表红方棋子，-1代表黑方棋子, 队列最后一个盘面
         # 第7个平面表示对手player最近一步的落子位置，走子之前的位置为-1，走子之后的位置为1，其余全部是0
         # 第8个平面表示的是当前player是不是先手player，如果是先手player则整个平面全部为1，否则全部为0
+        _current_state[:7] = state_list2state_array(self.state_deque[-1]).transpose([2, 0, 1])  # [7, 10, 9]
+
         if self.game_start:
-            _current_state[:7] = state_list2state_array(self.state_deque[-1]).transpose([2, 0, 1])  # [7, 10, 9]
             # 解构self.last_move
             move = move_id2move_action[self.last_move]
             start_position = int(move[0]), int(move[1])
@@ -732,8 +736,9 @@ class Board(object):
         """一共有三种状态，红方胜，黑方胜，平局"""
         if self.winner is not None:
             return True, self.winner
-        elif self.kill_action >= CONFIG['kill_action']:  # 平局
-            return False, -1
+        elif self.kill_action >= CONFIG['kill_action']:  # 平局先手判负
+            # return False, -1
+            return True, self.backhand_player
         return False, -1
 
     # 检查当前棋局是否结束
@@ -775,7 +780,7 @@ class Game(object):
         player2.set_player_ind(2)
         players = {p1: player1, p2: player2}
         if is_shown:
-            self.graphic(self.board, self.board.id2color[player1.player], self.board.id2color[player2.player])
+            self.graphic(self.board, player1.player, player2.player)
 
         while True:
             current_player = self.board.get_current_player_id()  # 红子对应的玩家id
@@ -783,7 +788,7 @@ class Game(object):
             move = player_in_turn.get_action(self.board)  # 当前玩家代理拿到动作
             self.board.do_move(move)  # 棋盘做出改变
             if is_shown:
-                self.graphic(self.board, self.board.id2color[player1.player], self.board.id2color[player2.player])
+                self.graphic(self.board, player1.player, player2.player)
             end, winner = self.board.game_end()
             if end:
                 if winner != -1:
@@ -836,9 +841,9 @@ class Game(object):
 
 
 if __name__ == '__main__':
-    """# 测试array2string
-    _array = np.array([0, 0, 0, 0, 0, 0, 0])
-    print(array2string(_array))"""
+    # 测试array2string
+    # _array = np.array([0, 0, 0, 0, 0, 0, 0])
+    # print(array2num(_array))
 
     """# 测试change_state
     new_state = change_state(state_list_init, move='0010')
@@ -857,31 +862,37 @@ if __name__ == '__main__':
     print(move_actions)"""
 
     # 测试Board中的start_play
-    class Human1:
-        def get_action(self, board):
-            # print('当前是player1在操作')
-            # print(board.current_player_color)
-            # move = move_action2move_id[input('请输入')]
-            move = random.choice(board.availables)
-            return move
+    # class Human1:
+    #     def get_action(self, board):
+    #         # print('当前是player1在操作')
+    #         # print(board.current_player_color)
+    #         # move = move_action2move_id[input('请输入')]
+    #         move = random.choice(board.availables)
+    #         return move
+    #
+    #     def set_player_ind(self, p):
+    #         self.player = p
+    #
+    #
+    # class Human2:
+    #     def get_action(self, board):
+    #         # print('当前是player2在操作')
+    #         # print(board.current_player_color)
+    #         # move = move_action2move_id[input('请输入')]
+    #         move = random.choice(board.availables)
+    #         return move
+    #
+    #     def set_player_ind(self, p):
+    #         self.player = p
+    #
+    # human1 = Human1()
+    # human2 = Human2()
+    # game = Game(board=Board())
+    # for i in range(20):
+    #     game.start_play(human1, human2, start_player=2, is_shown=0)
+    board = Board()
+    board.init_board()
 
-        def set_player_ind(self, p):
-            self.player = p
 
 
-    class Human2:
-        def get_action(self, board):
-            # print('当前是player2在操作')
-            # print(board.current_player_color)
-            # move = move_action2move_id[input('请输入')]
-            move = random.choice(board.availables)
-            return move
 
-        def set_player_ind(self, p):
-            self.player = p
-
-    human1 = Human1()
-    human2 = Human2()
-    game = Game(board=Board())
-    for i in range(20):
-        game.start_play(human1, human2, start_player=2, is_shown=0)
